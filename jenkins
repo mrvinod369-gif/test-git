@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '749069983474'
+        ECR_REPOSITORY = 'hello-node-app'
+        IMAGE_TAG = 'latest'
+
+        ECR_REGISTRY = '749069983474.dkr.ecr.ap-south-1.amazonaws.com'
+
+        AWS_CREDENTIALS = credentials('aws-credentials')
+    }
+
+    stages {
+
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-credentials',
+                    url: 'https://github.com/mrvinod369-gif/temp-git1.git'
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                echo 'Running Maven build...'
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t hello-node-app:latest .'
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                echo 'Logging into Amazon ECR...'
+
+                sh '''
+                    aws sts get-caller-identity
+
+                    aws ecr get-login-password \
+                    --region $AWS_REGION | \
+                    docker login \
+                    --username AWS \
+                    --password-stdin $ECR_REGISTRY
+                '''
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                echo 'Tagging Docker image...'
+
+                sh '''
+                    docker tag hello-node-app:latest \
+                    $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                '''
+            }
+        }
+
+        stage('Push Image to ECR') {
+            steps {
+                echo 'Pushing Docker image to ECR...'
+
+                sh '''
+                    docker push \
+                    $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                '''
+            }
+        }
+    }
+}
