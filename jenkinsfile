@@ -25,5 +25,12 @@ pipeline {
             }
         }
 
+        stage('docker push') {
+            steps  {
+                   sh '''
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin $ECR_REGISTRY
+                '''
+                    sh'docker push 749069983474.dkr.ecr.ap-south-1.amazonaws.com/hello-node-app'
     }
 }
